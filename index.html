@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>88星座英文特訓班</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <style>
+        /* 3D 翻轉卡片效果 */
+        .perspective-1000 { perspective: 1000px; }
+        .transform-style-3d { transform-style: preserve-3d; }
+        .backface-hidden { backface-visibility: hidden; }
+        .rotate-y-180 { transform: rotateY(180deg); }
+        .card-inner { transition: transform 0.6s; }
+        .card-flipped .card-inner { transform: rotateY(180deg); }
+        
+        /* 動畫 */
+        @keyframes bounce-short {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        .animate-bounce-short { animation: bounce-short 0.5s ease-in-out; }
+        @keyframes fade-in {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .animate-fade-in { animation: fade-in 0.3s ease-out forwards; }
+        
+        /* 煙火 Canvas */
+        #fireworks {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 50;
+        }
+        
+        /* 星空背景 */
+        body {
+            background-color: #0f172a; /* 深藍色背景 */
+            color: #e2e8f0;
+        }
+    </style>
+</head>
+<body class="font-sans min-h-screen">
+
+    <canvas id="fireworks"></canvas>
+    <div id="app"></div>
+
+    <script>
+        // ==========================================
+        //  1. 資料區 (88 星座 The 88 Constellations)
+        // ==========================================
+        const toeicData = [
+            { id: 1, word: "Andromeda", chinese: "仙女座", sentence: "The Andromeda Galaxy is visible within this constellation.", synonyms: "The Chained Maiden", type: "noun" },
+            { id: 2, word: "Antlia", chinese: "唧筒座", sentence: "Antlia represents an air pump.", synonyms: "The Air Pump", type: "noun" },
+            { id: 3, word: "Apus", chinese: "天燕座", sentence: "Apus is a faint constellation in the southern sky.", synonyms: "The Bird of Paradise", type: "noun" },
+            { id: 4, word: "Aquarius", chinese: "寶瓶座", sentence: "Aquarius is one of the zodiac constellations.", synonyms: "The Water Bearer", type: "noun" },
+            { id: 5, word: "Aquila", chinese: "天鷹座", sentence: "The bright star Altair is in Aquila.", synonyms: "The Eagle", type: "noun" },
+            { id: 6, word: "Ara", chinese: "天壇座", sentence: "Ara lies between Scorpius and Triangulum Australe.", synonyms: "The Altar", type: "noun" },
+            { id: 7, word: "Aries", chinese: "白羊座", sentence: "Aries is the first sign of the zodiac.", synonyms: "The Ram", type: "noun" },
+            { id: 8, word: "Auriga", chinese: "御夫座", sentence: "Capella is the brightest star in Auriga.", synonyms: "The Charioteer", type: "noun" },
+            { id: 9, word: "Bootes", chinese: "牧夫座", sentence: "Bootes contains the red giant star Arcturus.", synonyms: "The Herdsman", type: "noun" },
+            { id: 10, word: "Caelum", chinese: "雕具座", sentence: "Caelum is a small and faint constellation.", synonyms: "The Chisel", type: "noun" },
+            { id: 11, word: "Camelopardalis", chinese: "鹿豹座", sentence: "Camelopardalis represents a giraffe.", synonyms: "The Giraffe", type: "noun" },
+            { id: 12, word: "Cancer", chinese: "巨蟹座", sentence: "Cancer is known as the faintest zodiac constellation.", synonyms: "The Crab", type: "noun" },
+            { id: 13, word: "Canes Venatici", chinese: "獵犬座", sentence: "Canes Venatici represents the hunting dogs of Bootes.", synonyms: "The Hunting Dogs", type: "noun" },
+            { id: 14, word: "Canis Major", chinese: "大犬座", sentence: "Sirius, the brightest star in the sky, is in Canis Major.", synonyms: "The Great Dog", type: "noun" },
+            { id: 15, word: "Canis Minor", chinese: "小犬座", sentence: "Procyon is the brightest star in Canis Minor.", synonyms: "The Lesser Dog", type: "noun" },
+            { id: 16, word: "Capricornus", chinese: "摩羯座", sentence: "Capricornus is often depicted as a sea-goat.", synonyms: "The Sea Goat", type: "noun" },
+            { id: 17, word: "Carina", chinese: "船底座", sentence: "Canopus, the second brightest star, is in Carina.", synonyms: "The Keel", type: "noun" },
+            { id: 18, word: "Cassiopeia", chinese: "仙后座", sentence: "Cassiopeia forms a distinctive 'W' shape in the sky.", synonyms: "The Queen", type: "noun" },
+            { id: 19, word: "Centaurus", chinese: "半人馬座", sentence: "Alpha Centauri is the closest star system to us.", synonyms: "The Centaur", type: "noun" },
+            { id: 20, word: "Cepheus", chinese: "仙王座", sentence: "Cepheus is named after a king of Aethiopia.", synonyms: "The King", type: "noun" },
+            { id: 21, word: "Cetus", chinese: "鯨魚座", sentence: "Cetus is often referred to as the Sea Monster.", synonyms: "The Whale", type: "noun" },
+            { id: 22, word: "Chamaeleon", chinese: "蝘蜓座", sentence: "Chamaeleon is located near the south celestial pole.", synonyms: "The Chameleon", type: "noun" },
+            { id: 23, word: "Circinus", chinese: "圓規座", sentence: "Circinus represents a drafting compass.", synonyms: "The Compass", type: "noun" },
+            { id: 24, word: "Columba", chinese: "天鴿座", sentence: "Columba represents the dove of Noah.", synonyms: "The Dove", type: "noun" },
+            { id: 25, word: "Coma Berenices", chinese: "后髮座", sentence: "Coma Berenices means 'Berenice's Hair'.", synonyms: "Berenice's Hair", type: "noun" },
+            { id: 26, word: "Corona Australis", chinese: "南冕座", sentence: "Corona Australis forms a wreath shape.", synonyms: "The Southern Crown", type: "noun" },
+            { id: 27, word: "Corona Borealis", chinese: "北冕座", sentence: "Corona Borealis is a small but recognizable semicircular arc.", synonyms: "The Northern Crown", type: "noun" },
+            { id: 28, word: "Corvus", chinese: "烏鴉座", sentence: "Corvus is a small constellation in the southern sky.", synonyms: "The Crow", type: "noun" },
+            { id: 29, word: "Crater", chinese: "巨爵座", sentence: "Crater represents the cup of the god Apollo.", synonyms: "The Cup", type: "noun" },
+            { id: 30, word: "Crux", chinese: "南十字座", sentence: "Crux is the smallest of all 88 constellations.", synonyms: "The Southern Cross", type: "noun" },
+            { id: 31, word: "Cygnus", chinese: "天鵝座", sentence: "Cygnus contains the famous Northern Cross asterism.", synonyms: "The Swan", type: "noun" },
+            { id: 32, word: "Delphinus", chinese: "海豚座", sentence: "Delphinus looks like a leaping dolphin.", synonyms: "The Dolphin", type: "noun" },
+            { id: 33, word: "Dorado", chinese: "劍魚座", sentence: "The Large Magellanic Cloud is in Dorado.", synonyms: "The Swordfish", type: "noun" },
+            { id: 34, word: "Draco", chinese: "天龍座", sentence: "Draco winds around the Little Dipper.", synonyms: "The Dragon", type: "noun" },
+            { id: 35, word: "Equuleus", chinese: "小馬座", sentence: "Equuleus is the second smallest constellation.", synonyms: "The Little Horse", type: "noun" },
+            { id: 36, word: "Eridanus", chinese: "波江座", sentence: "Eridanus is represented as a river flowing south.", synonyms: "The River", type: "noun" },
+            { id: 37, word: "Fornax", chinese: "天爐座", sentence: "Fornax represents a chemical furnace.", synonyms: "The Furnace", type: "noun" },
+            { id: 38, word: "Gemini", chinese: "雙子座", sentence: "The two bright stars Castor and Pollux are in Gemini.", synonyms: "The Twins", type: "noun" },
+            { id: 39, word: "Grus", chinese: "天鶴座", sentence: "Grus is known as the Crane.", synonyms: "The Crane", type: "noun" },
+            { id: 40, word: "Hercules", chinese: "武仙座", sentence: "The Great Globular Cluster is located in Hercules.", synonyms: "The Hero", type: "noun" },
+            { id: 41, word: "Horologium", chinese: "時鐘座", sentence: "Horologium represents a pendulum clock.", synonyms: "The Clock", type: "noun" },
+            { id: 42, word: "Hydra", chinese: "長蛇座", sentence: "Hydra is the largest of the 88 constellations.", synonyms: "The Water Snake", type: "noun" },
+            { id: 43, word: "Hydrus", chinese: "水蛇座", sentence: "Hydrus is a small constellation in the deep southern sky.", synonyms: "The Male Water Snake", type: "noun" },
+            { id: 44, word: "Indus", chinese: "印第安座", sentence: "Indus represents an indigenous person.", synonyms: "The Indian", type: "noun" },
+            { id: 45, word: "Lacerta", chinese: "蠍虎座", sentence: "Lacerta is a small constellation in the northern sky.", synonyms: "The Lizard", type: "noun" },
+            { id: 46, word: "Leo", chinese: "獅子座", sentence: "Regulus is the heart of the lion in Leo.", synonyms: "The Lion", type: "noun" },
+            { id: 47, word: "Leo Minor", chinese: "小獅座", sentence: "Leo Minor lies between Leo and Ursa Major.", synonyms: "The Lesser Lion", type: "noun" },
+            { id: 48, word: "Lepus", chinese: "天兔座", sentence: "Lepus lies just under the feet of Orion.", synonyms: "The Hare", type: "noun" },
+            { id: 49, word: "Libra", chinese: "天秤座", sentence: "Libra is the only zodiac sign represented by an object.", synonyms: "The Scales", type: "noun" },
+            { id: 50, word: "Lupus", chinese: "豺狼座", sentence: "Lupus is located between Centaurus and Scorpius.", synonyms: "The Wolf", type: "noun" },
+            { id: 51, word: "Lynx", chinese: "天貓座", sentence: "Lynx is a faint constellation in the northern sky.", synonyms: "The Lynx", type: "noun" },
+            { id: 52, word: "Lyra", chinese: "天琴座", sentence: "Vega, a very bright star, is part of Lyra.", synonyms: "The Harp", type: "noun" },
+            { id: 53, word: "Mensa", chinese: "山案座", sentence: "Mensa is named after Table Mountain in South Africa.", synonyms: "The Table Mountain", type: "noun" },
+            { id: 54, word: "Microscopium", chinese: "顯微鏡座", sentence: "Microscopium is a small constellation in the southern sky.", synonyms: "The Microscope", type: "noun" },
+            { id: 55, word: "Monoceros", chinese: "麒麟座", sentence: "Monoceros lies on the celestial equator.", synonyms: "The Unicorn", type: "noun" },
+            { id: 56, word: "Musca", chinese: "蒼蠅座", sentence: "Musca is a small constellation near the Southern Cross.", synonyms: "The Fly", type: "noun" },
+            { id: 57, word: "Norma", chinese: "矩尺座", sentence: "Norma represents a carpenter's square.", synonyms: "The Level", type: "noun" },
+            { id: 58, word: "Octans", chinese: "南極座", sentence: "The South Celestial Pole is located in Octans.", synonyms: "The Octant", type: "noun" },
+            { id: 59, word: "Ophiuchus", chinese: "蛇夫座", sentence: "Ophiuchus is often called the 13th zodiac sign.", synonyms: "The Serpent Bearer", type: "noun" },
+            { id: 60, word: "Orion", chinese: "獵戶座", sentence: "Orion is one of the most recognizable constellations.", synonyms: "The Hunter", type: "noun" },
+            { id: 61, word: "Pavo", chinese: "孔雀座", sentence: "Pavo is known for its bright star Peacock.", synonyms: "The Peacock", type: "noun" },
+            { id: 62, word: "Pegasus", chinese: "飛馬座", sentence: "The Great Square is the main feature of Pegasus.", synonyms: "The Winged Horse", type: "noun" },
+            { id: 63, word: "Perseus", chinese: "英仙座", sentence: "Perseus contains the variable star Algol.", synonyms: "The Hero", type: "noun" },
+            { id: 64, word: "Phoenix", chinese: "鳳凰座", sentence: "Phoenix is named after the mythical bird.", synonyms: "The Phoenix", type: "noun" },
+            { id: 65, word: "Pictor", chinese: "繪架座", sentence: "Pictor represents an easel.", synonyms: "The Painter's Easel", type: "noun" },
+            { id: 66, word: "Pisces", chinese: "雙魚座", sentence: "Pisces represents two fish tied together.", synonyms: "The Fishes", type: "noun" },
+            { id: 67, word: "Piscis Austrinus", chinese: "南魚座", sentence: "Fomalhaut is the bright star in Piscis Austrinus.", synonyms: "The Southern Fish", type: "noun" },
+            { id: 68, word: "Puppis", chinese: "船尾座", sentence: "Puppis was originally part of Argo Navis.", synonyms: "The Stern", type: "noun" },
+            { id: 69, word: "Pyxis", chinese: "羅盤座", sentence: "Pyxis represents a mariner's compass.", synonyms: "The Compass", type: "noun" },
+            { id: 70, word: "Reticulum", chinese: "網罟座", sentence: "Reticulum is a small constellation in the southern sky.", synonyms: "The Reticle", type: "noun" },
+            { id: 71, word: "Sagitta", chinese: "天箭座", sentence: "Sagitta is the third smallest constellation.", synonyms: "The Arrow", type: "noun" },
+            { id: 72, word: "Sagittarius", chinese: "人馬座", sentence: "The center of the Milky Way lies in Sagittarius.", synonyms: "The Archer", type: "noun" },
+            { id: 73, word: "Scorpius", chinese: "天蠍座", sentence: "Antares is the red heart of Scorpius.", synonyms: "The Scorpion", type: "noun" },
+            { id: 74, word: "Sculptor", chinese: "玉夫座", sentence: "The South Galactic Pole is in Sculptor.", synonyms: "The Sculptor", type: "noun" },
+            { id: 75, word: "Scutum", chinese: "盾牌座", sentence: "Scutum is a small constellation in the Milky Way.", synonyms: "The Shield", type: "noun" },
+            { id: 76, word: "Serpens", chinese: "巨蛇座", sentence: "Serpens is the only constellation split into two parts.", synonyms: "The Serpent", type: "noun" },
+            { id: 77, word: "Sextans", chinese: "六分儀座", sentence: "Sextans sits near the celestial equator.", synonyms: "The Sextant", type: "noun" },
+            { id: 78, word: "Taurus", chinese: "金牛座", sentence: "Taurus contains the Pleiades star cluster.", synonyms: "The Bull", type: "noun" },
+            { id: 79, word: "Telescopium", chinese: "望遠鏡座", sentence: "Telescopium honors the invention of the telescope.", synonyms: "The Telescope", type: "noun" },
+            { id: 80, word: "Triangulum", chinese: "三角座", sentence: "The Triangulum Galaxy is found here.", synonyms: "The Triangle", type: "noun" },
+            { id: 81, word: "Triangulum Australe", chinese: "南三角座", sentence: "Triangulum Australe is a small southern constellation.", synonyms: "The Southern Triangle", type: "noun" },
+            { id: 82, word: "Tucana", chinese: "杜鵑座", sentence: "The Small Magellanic Cloud is in Tucana.", synonyms: "The Toucan", type: "noun" },
+            { id: 83, word: "Ursa Major", chinese: "大熊座", sentence: "The Big Dipper is part of Ursa Major.", synonyms: "The Great Bear", type: "noun" },
+            { id: 84, word: "Ursa Minor", chinese: "小熊座", sentence: "Polaris, the North Star, is in Ursa Minor.", synonyms: "The Little Bear", type: "noun" },
+            { id: 85, word: "Vela", chinese: "船帆座", sentence: "Vela represents the sails of a ship.", synonyms: "The Sails", type: "noun" },
+            { id: 86, word: "Virgo", chinese: "室女座", sentence: "Virgo is the second largest constellation.", synonyms: "The Virgin", type: "noun" },
+            { id: 87, word: "Volans", chinese: "飛魚座", sentence: "Volans represents a flying fish.", synonyms: "The Flying Fish", type: "noun" },
+            { id: 88, word: "Vulpecula", chinese: "狐狸座", sentence: "The Dumbbell Nebula is located in Vulpecula.", synonyms: "The Fox", type: "noun" }
+        ];
+
+        // ==========================================
+        //  2. 程式邏輯區
+        // ==========================================
+        
+        let currentPage = 'home'; 
+        let currentSettings = { count: 10, type: 1 };
+        
+        let learnIndex = 0;
+        
+        let gameData = [];
+        let gameIndex = 0;
+        let score = 0;
+        let timer = 0;
+        let timerInterval = null;
+        let selectedCards = []; 
+        let matchedPairs = []; 
+        let gameActive = false;
+
+        // 新增：目前這題錯了幾次
+        let currentAttempts = 0;
+        const MAX_ATTEMPTS = 3; // 總共有 3 次機會 (1次原始 + 2次重試)
+
+        // --- 工具函式 ---
+
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel();
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US';
+                utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        function formatTime(sec) {
+            const m = Math.floor(sec / 60);
+            const s = sec % 60;
+            return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+        }
+
+        const correctEncouragements = ["Correct!", "Stellar!", "Out of this world!", "Amazing!", "Perfect!"];
+        const wrongEncouragements = ["Try again!", "Keep looking up!", "Don't give up!", "Almost there!"];
+
+        // 煙火效果
+        const canvas = document.getElementById('fireworks');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function triggerFireworks() {
+            const colors = ['#FFB7B2', '#FFDAC1', '#E2F0CB', '#B5EAD7', '#C7CEEA'];
+            const x = canvas.width / 2;
+            const y = canvas.height / 2;
+            for (let i = 0; i < 30; i++) {
+                particles.push({
+                    x, y,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    radius: Math.random() * 4 + 1,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    life: 100,
+                    alpha: 1
+                });
+            }
+            animateFireworks();
+        }
+
+        function animateFireworks() {
+            if (particles.length === 0) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                return;
+            }
+            requestAnimationFrame(animateFireworks);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            particles.forEach((p, index) => {
+                if (p.life > 0) {
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = p.color;
+                    ctx.globalAlpha = p.alpha;
+                    ctx.fill();
+                    p.x += p.vx;
+                    p.y += p.vy;
+                    p.life--;
+                    p.alpha -= 0.01;
+                } else {
+                    particles.splice(index, 1);
+                }
+            });
+        }
+
+        function showFeedback(isCorrect, msg) {
+            const div = document.createElement('div');
+            div.className = "fixed inset-0 flex items-center justify-center z-50 bg-black/60 backdrop-blur-sm animate-fade-in";
+            div.innerHTML = `
+                <div class="p-8 rounded-3xl shadow-2xl transform scale-110 flex flex-col items-center animate-bounce-short ${isCorrect ? 'bg-slate-800 border-4 border-green-400' : 'bg-slate-800 border-4 border-pink-400'}">
+                    <div class="text-6xl mb-4 ${isCorrect ? 'text-green-400' : 'text-pink-400'}">
+                        <i data-lucide="${isCorrect ? 'check' : 'heart'}"></i>
+                    </div>
+                    <h2 class="text-3xl font-black ${isCorrect ? 'text-green-400' : 'text-pink-400'}">
+                        ${msg}
+                    </h2>
+                </div>
+            `;
+            document.body.appendChild(div);
+            try { lucide.createIcons(); } catch(e){}
+            
+            if(isCorrect) triggerFireworks();
+
+            setTimeout(() => {
+                div.remove();
+            }, 1000);
+        }
+
+        // --- 畫面渲染函式 ---
+
+        function renderApp() {
+            const app = document.getElementById('app');
+            app.innerHTML = ''; 
+
+            if (currentPage === 'home') renderHome(app);
+            else if (currentPage === 'learn') renderLearn(app);
+            else if (currentPage === 'practice_menu') renderPracticeMenu(app);
+            else if (currentPage === 'practice_game') renderGame(app);
+            else if (currentPage === 'result') renderResult(app);
+            
+            try { lucide.createIcons(); } catch (e) {}
+        }
+
+        function renderHome(container) {
+            container.innerHTML = `
+                <div class="flex flex-col items-center justify-center min-h-screen p-6 space-y-8 text-center">
+                    <div class="bg-slate-800 p-8 rounded-3xl shadow-xl border-4 border-blue-400 max-w-md w-full">
+                        <h1 class="text-4xl font-black text-white mb-2 tracking-tight">88 Constellations</h1>
+                        <h2 class="text-2xl font-bold text-blue-300 mb-6">88星座英文特訓</h2>
+                        <div class="space-y-4">
+                            <button onclick="goToLearn()" class="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white rounded-2xl text-xl font-bold shadow-md transition-all transform hover:scale-105 flex items-center justify-center gap-3">
+                                <i data-lucide="book-open"></i> 學習星座
+                            </button>
+                            <button onclick="goToMenu()" class="w-full py-4 bg-purple-600 hover:bg-purple-500 text-white rounded-2xl text-xl font-bold shadow-md transition-all transform hover:scale-105 flex items-center justify-center gap-3">
+                                <i data-lucide="brain"></i> 測驗練習
+                            </button>
+                        </div>
+                    </div>
+                    <p class="text-slate-400 font-medium">探索全天88個星座！</p>
+                </div>
+            `;
+        }
+
+        function renderLearn(container) {
+            if (!toeicData || toeicData.length === 0) {
+                container.innerHTML = "<div class='p-10 text-white'>讀取不到資料</div>";
+                return;
+            }
+            
+            const word = toeicData[learnIndex];
+            container.innerHTML = `
+                <div class="min-h-screen flex flex-col items-center pt-8 pb-4">
+                    <div class="w-full max-w-md px-4 flex justify-between items-center mb-6">
+                        <button onclick="goHome()" class="bg-slate-700 p-2 rounded-full shadow text-white hover:bg-slate-600"><i data-lucide="rotate-ccw"></i></button>
+                        <h2 class="text-2xl font-bold text-white">星座卡 (${learnIndex + 1}/${toeicData.length})</h2>
+                        <div class="w-10"></div>
+                    </div>
+
+                    <div class="relative w-full max-w-xs h-96 perspective-1000 mb-8 cursor-pointer group" onclick="this.classList.toggle('card-flipped')">
+                        <div class="card-inner relative w-full h-full transform-style-3d w-full h-full">
+                            <div class="absolute w-full h-full bg-slate-800 rounded-3xl shadow-2xl border-b-8 border-blue-500 backface-hidden flex flex-col items-center justify-center p-6 text-center text-white">
+                                <span class="text-6xl mb-6">🌟</span>
+                                <h3 class="text-4xl font-bold mb-4">${word.word}</h3>
+                                <button onclick="event.stopPropagation(); speak('${word.word}')" class="bg-blue-600 text-white p-4 rounded-full hover:bg-blue-500 transition-colors">
+                                    <i data-lucide="volume-2" width="32" height="32"></i>
+                                </button>
+                                <p class="mt-6 text-slate-400 text-sm">(點擊翻面)</p>
+                            </div>
+                            <div class="absolute w-full h-full bg-white rounded-3xl shadow-2xl border-b-8 border-purple-500 backface-hidden rotate-y-180 flex flex-col items-center justify-center p-6 text-center text-slate-800">
+                                <h3 class="text-3xl font-bold text-purple-600 mb-2">${word.chinese}</h3>
+                                <div class="w-full h-0.5 bg-slate-200 my-4"></div>
+                                <p class="text-slate-600 italic mb-4">"${word.sentence}"</p>
+                                <div class="bg-orange-50 px-3 py-2 rounded-lg">
+                                    <p class="text-xs text-orange-400 font-bold uppercase">Meaning</p>
+                                    <p class="text-orange-600 text-sm font-bold">${word.synonyms}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-6">
+                        <button onclick="prevLearnCard()" class="px-6 py-3 bg-slate-700 text-white rounded-xl shadow font-bold hover:bg-slate-600">上一張</button>
+                        <button onclick="nextLearnCard()" class="px-6 py-3 bg-blue-600 text-white rounded-xl shadow font-bold hover:bg-blue-500">下一張</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderPracticeMenu(container) {
+            const counts = [10, 20, 40, 88];
+            let countBtns = counts.map(num => 
+                `<button onclick="setGameCount(${num})" class="py-2 rounded-lg font-bold transition-all ${currentSettings.count === num ? 'bg-blue-500 text-white scale-110' : 'bg-slate-700 text-slate-300 hover:bg-slate-600'}">${num}</button>`
+            ).join('');
+
+            const options = [
+                {t:1, title:"聽音選中文", icon:"🎧", desc:"Listening - Chinese", color:"blue"},
+                {t:2, title:"聽音選英文", icon:"🔠", desc:"Listening - English", color:"purple"},
+                {t:3, title:"看英選中", icon:"👁️", desc:"Reading - Chinese", color:"pink"},
+                {t:4, title:"聽音配對", icon:"🧩", desc:"Audio Match", color:"orange"},
+                {t:5, title:"文字配對", icon:"🃏", desc:"Word Match", color:"green"},
+                {t:6, title:"星座描述", icon:"📝", desc:"Fill in blanks", color:"red"}
+            ];
+
+            let gameBtns = options.map(opt => {
+                const colorClass = {
+                    blue: 'bg-blue-900 text-blue-200 hover:bg-blue-800 border-blue-700',
+                    purple: 'bg-purple-900 text-purple-200 hover:bg-purple-800 border-purple-700',
+                    pink: 'bg-pink-900 text-pink-200 hover:bg-pink-800 border-pink-700',
+                    orange: 'bg-orange-900 text-orange-200 hover:bg-orange-800 border-orange-700',
+                    green: 'bg-emerald-900 text-emerald-200 hover:bg-emerald-800 border-emerald-700',
+                    red: 'bg-red-900 text-red-200 hover:bg-red-800 border-red-700',
+                }[opt.color];
+                return `<button onclick="startGame(${opt.t})" class="flex flex-col items-center p-4 rounded-2xl border-b-4 transition-all transform hover:translate-y-1 ${colorClass}">
+                    <span class="text-3xl mb-2">${opt.icon}</span>
+                    <span class="font-bold text-lg">${opt.title}</span>
+                    <span class="text-xs opacity-70">${opt.desc}</span>
+                </button>`;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="min-h-screen flex flex-col items-center p-6">
+                    <button onclick="goHome()" class="self-start mb-6 bg-slate-700 px-4 py-2 rounded-lg text-white font-bold shadow flex items-center gap-2 hover:bg-slate-600"><i data-lucide="rotate-ccw" width="16"></i> 返回</button>
+                    <h2 class="text-3xl font-bold text-white mb-8">選擇練習模式</h2>
+                    <div class="w-full max-w-lg space-y-6">
+                        <div class="bg-slate-800 p-6 rounded-2xl shadow-lg border border-slate-700">
+                            <h3 class="text-lg font-bold text-slate-300 mb-3 flex items-center gap-2"><i data-lucide="settings" width="20"></i> 題數設定</h3>
+                            <div class="grid grid-cols-4 gap-2">${countBtns}</div>
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">${gameBtns}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderGame(container) {
+            const isPairing = currentSettings.type === 4 || currentSettings.type === 5;
+            
+            let contentHtml = '';
+            if (isPairing) {
+                contentHtml = renderPairingBoard();
+            } else {
+                contentHtml = renderQuizCard();
+            }
+
+            container.innerHTML = `
+                <div class="min-h-screen flex flex-col relative overflow-hidden">
+                    <div class="bg-slate-800 p-4 shadow-sm flex justify-between items-center z-10 sticky top-0 border-b border-slate-700">
+                        <button onclick="goToMenu()" class="text-slate-400 hover:text-white"><i data-lucide="x"></i></button>
+                        <div class="flex gap-4">
+                            <div class="flex items-center gap-2 bg-blue-900 text-blue-200 px-3 py-1 rounded-full font-bold text-sm">
+                                <i data-lucide="clock" width="16"></i> <span id="timerDisplay">${formatTime(timer)}</span>
+                            </div>
+                            ${!isPairing ? `
+                            <div class="flex items-center gap-2 bg-pink-900 text-pink-200 px-3 py-1 rounded-full font-bold text-sm">
+                                <i data-lucide="star" width="16"></i> ${score} / ${currentSettings.count}
+                            </div>` : ''}
+                        </div>
+                    </div>
+                    <div class="flex-1 flex flex-col items-center justify-center p-4 z-10 w-full max-w-4xl mx-auto">
+                        ${contentHtml}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderQuizCard() {
+            const q = gameData[gameIndex];
+            const type = currentSettings.type;
+            
+            let options = [q];
+            let distractors = toeicData.filter(i => i.id !== q.id).sort(() => 0.5 - Math.random()).slice(0, 3);
+            options = options.concat(distractors).sort(() => 0.5 - Math.random());
+
+            if ((type === 1 || type === 2) && currentAttempts === 0) setTimeout(() => speak(q.word), 100);
+
+            let questionDisplay = '';
+            if (type === 1) questionDisplay = `<button onclick="speak('${q.word}')" class="bg-blue-700 p-6 rounded-full text-white hover:bg-blue-600 transition mb-4 shadow-lg"><i data-lucide="volume-2" width="48" height="48"></i></button><p class="text-slate-400">聽音選中文</p>`;
+            else if (type === 2) questionDisplay = `<button onclick="speak('${q.word}')" class="bg-purple-700 p-6 rounded-full text-white hover:bg-purple-600 transition mb-4 shadow-lg"><i data-lucide="volume-2" width="48" height="48"></i></button><p class="text-slate-400">聽音選英文</p>`;
+            else if (type === 3) questionDisplay = `<h2 class="text-4xl font-black text-white tracking-wide">${q.word}</h2><p class="mt-4 text-slate-400">看英文選中文</p>`;
+            else if (type === 6) {
+                const parts = q.sentence.split(new RegExp(`\\b${q.word}\\b`, 'i'));
+                const sentenceHtml = parts.map((p, i) => i < parts.length - 1 ? `${p}<span class="inline-block w-24 border-b-4 border-pink-500 mx-1"></span>` : p).join('');
+                questionDisplay = `<div class="text-xl text-white font-medium text-left leading-relaxed bg-slate-800 p-6 rounded-2xl border border-slate-700">${sentenceHtml}</div><p class="mt-6 text-slate-400 text-sm">選出缺空的星座名</p>`;
+            }
+
+            // 修改：加入 this 參數傳遞按鈕本身
+            const optionsHtml = options.map(opt => `
+                <button onclick="checkAnswer(${opt.id}, this)" class="bg-slate-800 p-4 rounded-xl shadow-md border-2 border-slate-700 hover:border-pink-500 hover:bg-slate-700 transition-all text-slate-200 font-bold text-lg min-h-[64px] disabled:opacity-50 disabled:cursor-not-allowed">
+                    ${(type === 1 || type === 3) ? opt.chinese : opt.word}
+                </button>
+            `).join('');
+
+            return `
+                <div class="w-full max-w-md">
+                    <div class="w-full h-2 bg-slate-700 rounded-full mb-8 overflow-hidden">
+                        <div class="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500" style="width: ${((gameIndex + 1) / currentSettings.count) * 100}%"></div>
+                    </div>
+                    <div class="bg-slate-800 rounded-3xl shadow-xl p-8 mb-6 text-center border-b-8 border-blue-600 relative">
+                        <span class="absolute top-4 left-4 bg-slate-700 text-slate-300 px-3 py-1 rounded-lg text-xs font-bold">Q${gameIndex + 1}</span>
+                        <div class="py-4">${questionDisplay}</div>
+                    </div>
+                    <div class="grid grid-cols-1 gap-3">${optionsHtml}</div>
+                </div>
+            `;
+        }
+
+        function renderPairingBoard() {
+            const cardsHtml = gameData.map((card, idx) => {
+                const isMatched = matchedPairs.includes(card.itemId);
+                const isSelected = selectedCards.some(c => c.uid === card.uid);
+                
+                const colors = ['bg-pink-300', 'bg-blue-300', 'bg-purple-300', 'bg-green-300', 'bg-yellow-300'];
+                const matchColor = isMatched ? colors[card.itemId % colors.length] : 'bg-white';
+                
+                let content = `<span class="text-slate-800 font-bold">${card.content}</span>`;
+                if(currentSettings.type === 4 && card.type === 'question') {
+                    content = `<i data-lucide="volume-2" class="${isSelected?'text-orange-600':'text-blue-600'}" width="32"></i>`;
+                }
+                if(isMatched) content = `<i data-lucide="check" class="text-slate-800 opacity-50"></i>`;
+
+                let className = "aspect-square rounded-2xl shadow-sm border-b-4 flex items-center justify-center p-2 transition-all duration-300 text-sm md:text-base font-bold ";
+                if(isMatched) className += `${matchColor} border-transparent opacity-80 scale-95`;
+                else if(isSelected) className += `bg-orange-200 border-orange-400 -translate-y-1`;
+                else className += `bg-white border-slate-300 hover:bg-slate-100`;
+
+                return `<button onclick="handlePairClick(${idx})" ${isMatched ? 'disabled' : ''} class="${className}">${content}</button>`;
+            }).join('');
+
+            return `
+                <div class="w-full max-w-5xl">
+                    <div class="text-center mb-4">
+                        <p class="text-slate-400">配對所有卡片！ (${matchedPairs.length} / ${currentSettings.count} 組)</p>
+                    </div>
+                    <div class="grid grid-cols-4 md:grid-cols-5 gap-3">${cardsHtml}</div>
+                </div>
+            `;
+        }
+
+        function renderResult(container) {
+            const percentage = (score / currentSettings.count) * 100;
+            let stars = 1;
+            if (percentage > 50) stars = 2;
+            if (percentage > 80) stars = 3;
+
+            const starHtml = [1,2,3].map(i => 
+                `<i data-lucide="star" width="48" height="48" class="${i <= stars ? "text-yellow-400 fill-yellow-400" : "text-slate-600"}"></i>`
+            ).join('');
+
+            container.innerHTML = `
+                <div class="bg-slate-800 p-8 rounded-3xl shadow-2xl max-w-md w-full text-center border-4 border-blue-500 animate-bounce-short">
+                    <div class="mb-6 flex justify-center gap-2">${starHtml}</div>
+                    <h2 class="text-3xl font-black text-white mb-2">練習完成！</h2>
+                    <p class="text-slate-400 mb-8">宇宙級的表現！繼續保持！</p>
+                    <div class="grid grid-cols-2 gap-4 mb-8">
+                        <div class="bg-blue-900 p-4 rounded-2xl">
+                            <p class="text-blue-300 text-xs font-bold uppercase">Score</p>
+                            <p class="text-3xl font-bold text-white">${score} <span class="text-lg opacity-50">/ ${currentSettings.count}</span></p>
+                        </div>
+                        <div class="bg-purple-900 p-4 rounded-2xl">
+                            <p class="text-purple-300 text-xs font-bold uppercase">Time</p>
+                            <p class="text-3xl font-bold text-white">${formatTime(timer)}</p>
+                        </div>
+                    </div>
+                    <div class="space-y-3">
+                        <button onclick="startGame(${currentSettings.type})" class="w-full py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg hover:bg-blue-500 transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="rotate-ccw" width="20"></i> 再玩一次
+                        </button>
+                        <button onclick="goToMenu()" class="w-full py-4 bg-slate-700 text-slate-200 border-2 border-slate-600 rounded-xl font-bold hover:bg-slate-600 transition-all">
+                            更換模式
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- 互動控制函式 ---
+
+        function goHome() { currentPage = 'home'; renderApp(); }
+        function goToLearn() { currentPage = 'learn'; learnIndex = 0; renderApp(); }
+        function goToMenu() { 
+            stopTimer(); 
+            currentPage = 'practice_menu'; 
+            renderApp(); 
+        }
+
+        function nextLearnCard() {
+            learnIndex = (learnIndex + 1) % toeicData.length;
+            renderApp();
+        }
+        function prevLearnCard() {
+            learnIndex = (learnIndex - 1 + toeicData.length) % toeicData.length;
+            renderApp();
+        }
+
+        function setGameCount(n) {
+            currentSettings.count = n;
+            renderApp();
+        }
+
+        function startGame(type) {
+            currentSettings.type = type;
+            score = 0;
+            timer = 0;
+            gameIndex = 0;
+            currentAttempts = 0; // 重置嘗試次數
+            matchedPairs = [];
+            selectedCards = [];
+            gameActive = true;
+            
+            let shuffled = [...toeicData].sort(() => 0.5 - Math.random());
+            let selected = shuffled.slice(0, currentSettings.count);
+
+            if (type === 4 || type === 5) {
+                let pairs = [];
+                selected.forEach((item, idx) => {
+                    pairs.push({
+                        uid: `q-${item.id}`,
+                        itemId: item.id,
+                        content: type === 4 ? 'audio' : item.word,
+                        type: 'question',
+                        word: item.word
+                    });
+                    pairs.push({
+                        uid: `a-${item.id}`,
+                        itemId: item.id,
+                        content: item.chinese,
+                        type: 'answer'
+                    });
+                });
+                gameData = pairs.sort(() => 0.5 - Math.random());
+            } else {
+                gameData = selected;
+            }
+
+            currentPage = 'practice_game';
+            renderApp();
+            startTimer();
+        }
+
+        function startTimer() {
+            stopTimer();
+            timerInterval = setInterval(() => {
+                timer++;
+                const el = document.getElementById('timerDisplay');
+                if(el) el.innerText = formatTime(timer);
+            }, 1000);
+        }
+        function stopTimer() {
+            if(timerInterval) clearInterval(timerInterval);
+        }
+
+        // 修改：加入 retry 邏輯，並接收 btnElement 參數
+        function checkAnswer(selectedId, btnElement) {
+            if(!gameActive) return;
+            const correctId = gameData[gameIndex].id;
+            
+            if (selectedId === correctId) {
+                // 答對了
+                score++;
+                showFeedback(true, correctEncouragements[Math.floor(Math.random() * correctEncouragements.length)]);
+                moveToNextQuestion();
+            } else {
+                // 答錯了
+                currentAttempts++;
+                
+                // 視覺回饋：將按鈕變紅並禁用
+                if (btnElement) {
+                    btnElement.classList.remove('bg-slate-800', 'hover:bg-slate-700', 'border-slate-700');
+                    btnElement.classList.add('bg-red-900', 'text-red-200', 'border-red-600', 'opacity-80');
+                    btnElement.disabled = true;
+                }
+
+                if (currentAttempts >= MAX_ATTEMPTS) {
+                    // 機會用盡
+                    showFeedback(false, "沒關係，下一題！");
+                    moveToNextQuestion();
+                } else {
+                    // 還有機會，停留在當前頁面
+                    showFeedback(false, `再試試！還有 ${MAX_ATTEMPTS - currentAttempts} 次機會`);
+                }
+            }
+        }
+
+        // 新增：切換到下一題的獨立函式
+        function moveToNextQuestion() {
+            setTimeout(() => {
+                if (gameIndex < currentSettings.count - 1) {
+                    gameIndex++;
+                    currentAttempts = 0; // 重置嘗試次數
+                    renderApp();
+                } else {
+                    finishGame();
+                }
+            }, 1000);
+        }
+
+        function handlePairClick(cardIndex) {
+            const card = gameData[cardIndex];
+            
+            if(matchedPairs.includes(card.itemId)) return;
+            if(selectedCards.some(c => c.uid === card.uid)) return;
+            if(selectedCards.length >= 2) return;
+
+            if(currentSettings.type === 4 && card.type === 'question') {
+                speak(card.word);
+            }
+
+            selectedCards.push(card);
+            renderApp(); 
+
+            if(selectedCards.length === 2) {
+                const [c1, c2] = selectedCards;
+                if (c1.itemId === c2.itemId) {
+                    score++;
+                    matchedPairs.push(c1.itemId);
+                    showFeedback(true, "配對成功！");
+                    selectedCards = [];
+                    renderApp();
+
+                    if (matchedPairs.length === currentSettings.count) {
+                        setTimeout(finishGame, 1000);
+                    }
+                } else {
+                    setTimeout(() => {
+                        selectedCards = [];
+                        renderApp();
+                    }, 1000);
+                }
+            }
+        }
+
+        function finishGame() {
+            gameActive = false;
+            stopTimer();
+            currentPage = 'result';
+            renderApp();
+        }
+
+        // --- 程式進入點 ---
+        renderApp();
+
+    </script>
+</body>
+</html>
